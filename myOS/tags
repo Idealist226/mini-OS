@@ -107,6 +107,8 @@ SELECTOR_U_DATA	kernel/global.h	43;"	d
 SELECTOR_U_STACK	kernel/global.h	44;"	d
 SELECTOR_VIDEO	boot/loader.S	/^   SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0	 ; 同上 $/;"	d
 SELECTOR_VIDEO	lib/kernel/print.S	/^SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0$/;"	d
+SYSCALL_NR	lib/user/syscall.h	/^enum SYSCALL_NR {$/;"	g
+SYS_GETPID	lib/user/syscall.h	/^   SYS_GETPID$/;"	e	enum:SYSCALL_NR
 TASK_BLOCKED	thread/thread.h	/^    TASK_BLOCKED,$/;"	e	enum:task_status
 TASK_DIED	thread/thread.h	/^    TASK_DIED$/;"	e	enum:task_status
 TASK_HANGING	thread/thread.h	/^    TASK_HANGING,$/;"	e	enum:task_status
@@ -185,15 +187,22 @@ __LIB_KERNEL_LIST_H	lib/kernel/list.h	2;"	d
 __LIB_KERNEL_PRINT_H	lib/kernel/print.h	2;"	d
 __LIB_STDINT_H	lib/stdint.h	2;"	d
 __LIB_STRING_H	lib/string.h	2;"	d
+__LIB_USER_SYSCALL_H	lib/user/syscall.h	2;"	d
 __THREAD_SYNC_H	thread/sync.h	2;"	d
 __THREAD_THREAD_H	thread/thread.h	2;"	d
 __USERPROG_PROCESS_H	userprog/process.h	2;"	d
+__USERPROG_SYSCALLINIT_H	userprog/syscall-init.h	2;"	d
 __USERPROG_TSS_H	userprog/tss.h	2;"	d
+_syscall0	lib/user/syscall.c	4;"	d	file:
+_syscall1	lib/user/syscall.c	15;"	d	file:
+_syscall2	lib/user/syscall.c	26;"	d	file:
+_syscall3	lib/user/syscall.c	37;"	d	file:
 add	kernel/kernel.S	/^add esp, 4			   ; 跳过error_code$/;"	l
 add	kernel/kernel.S	/^add esp, 4			   ; 跳过中断号$/;"	l
 add	lib/kernel/print.S	/^add esp, 4		      ; 回收参数所占的栈空间$/;"	l
 addr_v2p	kernel/memory.c	/^uint32_t addr_v2p(uint32_t vaddr) {$/;"	f
 all_list_tag	thread/thread.h	/^    struct list_elem all_list_tag;$/;"	m	struct:task_struct	typeref:struct:task_struct::list_elem
+allocate_pid	thread/thread.c	/^static pid_t allocate_pid(void) {$/;"	f	file:
 alt_l_char	device/keyboard.c	23;"	d	file:
 alt_l_make	device/keyboard.c	30;"	d	file:
 alt_r_break	device/keyboard.c	32;"	d	file:
@@ -294,6 +303,7 @@ esp_dummy	thread/thread.h	/^    uint32_t esp_dummy;	 \/\/ 虽然pushad把esp也�
 exception_init	kernel/interrupt.c	/^static void exception_init(void) {			    \/\/ 完成一般中断处理函数注册及异常名称注册$/;"	f	file:
 ext_scancode	device/keyboard.c	/^static bool ctrl_status, shift_status, alt_status, caps_lock_status, ext_scancode;$/;"	v	file:
 extern	kernel/kernel.S	/^extern idt_table		 ;idt_table是C中注册的中断处理程序数组$/;"	l
+extern	kernel/kernel.S	/^extern syscall_table$/;"	l
 f	makefile	/^	dd if=$(BUILD_DIR)\/kernel.bin \\$/;"	m
 f	makefile	/^	dd if=$(BUILD_DIR)\/loader.bin of=..\/bochs\/hd60M.img bs=512 count=4 seek=2 conv=notrunc$/;"	m
 false	kernel/global.h	123;"	d
@@ -313,8 +323,10 @@ general_tag	thread/thread.h	/^    struct list_elem general_tag;				    $/;"	m	st
 get_a_page	kernel/memory.c	/^void* get_a_page(enum pool_flags pf, uint32_t vaddr) {$/;"	f
 get_kernel_pages	kernel/memory.c	/^void* get_kernel_pages(uint32_t pg_cnt) {$/;"	f
 get_user_pages	kernel/memory.c	/^void* get_user_pages(uint32_t pg_cnt) {$/;"	f
+getpid	lib/user/syscall.c	/^uint32_t getpid()$/;"	f
 global	kernel/kernel.S	/^global intr_entry_table$/;"	l
 global	kernel/kernel.S	/^global intr_exit$/;"	l
+global	kernel/kernel.S	/^global syscall_handler$/;"	l
 global	lib/kernel/print.S	/^global put_char$/;"	l
 global	lib/kernel/print.S	/^global put_str$/;"	l
 global	thread/switch.S	/^global switch_to$/;"	l
@@ -443,6 +455,9 @@ pde_ptr	kernel/memory.c	/^uint32_t* pde_ptr(uint32_t vaddr) {$/;"	f
 pgdir	thread/thread.h	/^    uint32_t* pgdir;                    \/\/ 进程自己页表的虚拟地址$/;"	m	struct:task_struct
 phy_addr_start	kernel/memory.c	/^    uint32_t phy_addr_start;	\/\/ 本内存池所管理物理内存的起始地址$/;"	m	struct:pool	file:
 pic_init	kernel/interrupt.c	/^static void pic_init(void) {$/;"	f	file:
+pid	thread/thread.h	/^    pid_t pid;$/;"	m	struct:task_struct
+pid_lock	thread/thread.c	/^struct lock pid_lock;$/;"	v	typeref:struct:lock
+pid_t	thread/thread.h	/^typedef int16_t pid_t;$/;"	t
 pool	kernel/memory.c	/^struct pool {$/;"	s	file:
 pool_bitmap	kernel/memory.c	/^    struct bitmap pool_bitmap;	\/\/ 本内存池用到的位图结构,用于管理物理内存$/;"	m	struct:pool	typeref:struct:pool::bitmap	file:
 pool_flags	kernel/memory.h	/^enum pool_flags {$/;"	g
@@ -459,7 +474,10 @@ priority	thread/thread.h	/^    uint8_t priority;$/;"	m	struct:task_struct
 process_activate	userprog/process.c	/^void process_activate(struct task_struct* p_thread) {$/;"	f
 process_execute	userprog/process.c	/^void process_execute(void* filename, char* name) {$/;"	f
 producer	device/ioqueue.h	/^    struct task_struct* producer;$/;"	m	struct:ioqueue	typeref:struct:ioqueue::task_struct
+prog_a_pid	kernel/main.c	/^int prog_a_pid = 0, prog_b_pid = 0;$/;"	v
+prog_b_pid	kernel/main.c	/^int prog_a_pid = 0, prog_b_pid = 0;$/;"	v
 pte_ptr	kernel/memory.c	/^uint32_t* pte_ptr(uint32_t vaddr) {$/;"	f
+push	kernel/kernel.S	/^    push ds$/;"	d
 push	kernel/kernel.S	/^push %1			 ; 不管idt_table中的目标程序是否需要参数,都一律压入中断向量号,调试时很方便$/;"	l
 push	kernel/kernel.S	/^push ds$/;"	d
 push	kernel/kernel.S	/^push es$/;"	l
@@ -515,13 +533,17 @@ strcpy	lib/string.c	/^char* strcpy(char* dst_, const char* src_) {$/;"	f
 strlen	lib/string.c	/^uint32_t strlen(const char* str) {$/;"	f
 strrchr	lib/string.c	/^char* strrchr(const char* str, const uint8_t ch) {$/;"	f
 switch_to	thread/switch.S	/^switch_to:$/;"	l
+sys_getpid	userprog/syscall-init.c	/^uint32_t sys_getpid(void) {$/;"	f
+syscall	userprog/syscall-init.c	/^typedef void* syscall;$/;"	t	file:
+syscall_handler	kernel/kernel.S	/^syscall_handler:$/;"	l
+syscall_init	userprog/syscall-init.c	/^void syscall_init(void) {$/;"	f
+syscall_nr	userprog/syscall-init.c	7;"	d	file:
+syscall_table	userprog/syscall-init.c	/^syscall syscall_table[syscall_nr];$/;"	v
 tab	device/keyboard.c	13;"	d	file:
 tail	device/ioqueue.h	/^    int32_t tail;           \/\/队尾，数据从队尾处读出$/;"	m	struct:ioqueue
 tail	lib/kernel/list.h	/^   struct list_elem tail;$/;"	m	struct:list	typeref:struct:list::list_elem
 task_status	thread/thread.h	/^enum task_status {$/;"	g
 task_struct	thread/thread.h	/^struct task_struct {$/;"	s
-test_var_a	kernel/main.c	/^int test_var_a = 0, test_var_b = 0;$/;"	v
-test_var_b	kernel/main.c	/^int test_var_a = 0, test_var_b = 0;$/;"	v
 thread_all_list	thread/thread.c	/^struct list thread_all_list;	    \/\/ 所有任务队列$/;"	v	typeref:struct:list
 thread_block	thread/thread.c	/^void thread_block(enum task_status stat) {$/;"	f
 thread_create	thread/thread.c	/^void thread_create(struct task_struct* pthread, thread_func function, void* func_arg) {$/;"	f
